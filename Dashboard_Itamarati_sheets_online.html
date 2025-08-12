@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Agrorobótica • Painel SAFE (Upload + KPIs)</title>
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <style>
+    :root{ --brand:#2e7d32; --brandsoft:#eef8f0; --ink:#0a0a0a; --line:#e6eee6; --bg:#f8fbf8; --card:#fff; --maxw:1600px }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;font-size:13px;line-height:1.35}
+    .header{background:#ffffff;border-bottom:1px solid var(--line);padding:12px 16px}
+    .hrow{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+    .logo{display:flex;gap:10px;align-items:center}
+    .brandmark{width:38px;height:38px;border-radius:12px;background:#0c3b13;color:#eaf5ec;display:flex;align-items:center;justify-content:center;font-weight:900}
+    .container{max-width:var(--maxw);width:98vw;margin:0 auto;padding:16px}
+    .controls{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 14px;align-items:center}
+    select,input[type=date],input[type=text]{padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:#fff;font-weight:600;font-size:12.5px}
+    .btn{padding:8px 12px;border-radius:12px;border:1px solid #0a0a0a;background:#0a0a0a;color:#fff;font-weight:800;cursor:pointer;font-size:12px}
+    .btn.secondary{background:#fff;color:#0a0a0a;border-color:#cbd5d1}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 1px 1px rgba(0,0,0,.03), 0 8px 20px rgba(0,0,0,.03)}
+    .section{font-weight:800;font-size:11px;color:#093115;margin:2px 0 10px 2px;letter-spacing:.01em}
+    .grid-resumo{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-top:6px}
+    .card-resumo{display:grid;grid-template-columns:120px 1fr;align-items:center;gap:12px}
+    .ring{width:110px;height:110px;display:flex;align-items:center;justify-content:center;background:var(--brandsoft);border-radius:999px}
+    .title{font-weight:700;margin-bottom:2px;font-size:12.5px}
+    .desc{color:#1f2937;font-weight:600;font-size:12px}
+    .rest{color:#6b7280;font-size:11px;margin-top:2px}
+    .kpi-wrap{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+    .kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
+    .kpi{border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff;box-shadow:0 1px 1px rgba(0,0,0,.02)}
+    .kpi .label{font-size:11px;color:#6b7280}
+    .kpi .value{font-size:22px;font-weight:900;margin-top:2px;color:#0a0a0a}
+    svg text{font-family:system-ui, Arial; font-variant-numeric:tabular-nums lining-nums; font-feature-settings:"tnum" 1,"lnum" 1}
+    .err{display:none;margin-bottom:10px;padding:10px;border:1px solid #f3d2d2;background:#fff6f6;color:#7a1f1f;border-radius:12px;font-size:12px}
+    .uploader input[type=file]{display:none} .uploader .dz{border:1px dashed #cfe3d2;background:#f2fbf2;color:#063e1a;padding:8px 12px;border-radius:12px;font-weight:800;cursor:pointer}
+  </style>
+</head>
+<body>
+<header class="header">
+  <div class="hrow">
+    <div class="logo">
+      <div class="brandmark">AR</div>
+      <div><b>AGROROBÓTICA • PAINEL SAFE (Upload) — com KPIs</b><div style="font-size:11px;opacity:.85">Fonte: Upload de Excel (auto)</div></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn secondary" onclick="location.reload()">Recarregar</button>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+  <div class="controls">
+    <div class="uploader" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <label class="dz" for="fileInput">📄 Carregar Excel (.xlsx / .xls)</label>
+      <input id="fileInput" type="file" accept=".xlsx,.xls"/>
+    </div>
+    <label>Atividade: <select id="sel"></select></label>
+    <label>Início: <input type="date" id="dateStart"></label>
+    <label>Fim: <input type="date" id="dateEnd"></label>
+    <button class="btn" id="apply">Aplicar</button>
+    <button class="btn secondary" id="clear">Limpar</button>
+  </div>
+
+  <div id="err" class="err"></div>
+
+  <div class="card">
+    <div class="section">RESUMO GERAL</div>
+    <div class="grid-resumo" id="grid-resumo"></div>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <div class="section" id="title-atividade">KPIs —</div>
+    <div class="kpi-wrap">
+      <div class="kpi-donut">
+        <svg width="140" height="140" viewBox="0 0 160 160">
+          <circle class="bg" cx="80" cy="80" r="58" fill="none" stroke="#e9efe9" stroke-width="14"/>
+          <circle id="kpi-fg" cx="80" cy="80" r="58" fill="none" stroke="var(--brand)" stroke-width="14"
+                  stroke-linecap="round" transform="rotate(-90 80 80)"
+                  stroke-dasharray="0 364.42" stroke-dashoffset="0"/>
+          <text id="kpi-pct-txt" x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
+                font-size="28" font-weight="800">0%</text>
+        </svg>
+      </div>
+      <div style="flex:1;min-width:320px">
+        <div class="kpi-grid">
+          <div class="kpi"><div class="label" id="label-pct">% concluído</div><div class="value" id="kpi-pct">0%</div></div>
+          <div class="kpi"><div class="label" id="label-pt">Processadas / Total</div><div class="value" id="kpi-pt">0 / 0</div></div>
+          <div class="kpi"><div class="label">Restante</div><div class="value" id="kpi-rest">0</div></div>
+          <div class="kpi"><div class="label">Média diária (7d)</div><div class="value" id="kpi-media7">—</div></div>
+          <div class="kpi"><div class="label">Variação semanal</div><div class="value" id="kpi-var">—</div></div>
+          <div class="kpi"><div class="label">ETA (dias)</div><div class="value" id="kpi-eta">—</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+function fmtInt(x){const n=Math.round(x||0);return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.')}
+function last(a,n){return a.slice(Math.max(0,a.length-n))}
+function norm(s){return (s||"").toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'')}
+function filledVals(a){ return (a||[]).filter(v => v!==null && v!=='' && !(typeof v==='number' && Number.isNaN(v))); }
+function showErr(msg){ const box=document.getElementById('err'); box.style.display='block'; box.innerHTML=msg; }
+function clearErr(){ const box=document.getElementById('err'); box.style.display='none'; box.innerHTML=''; }
+
+let FULL=null, CUR=null; let QUIMICO_NAME="Químico";
+
+function donut(pct){ const p=Math.max(0,Math.min(100, pct)); const r=48, C=2*Math.PI*r, d=C*p/100, g=C-d;
+  return '<svg width="120" height="120" viewBox="0 0 140 140">'
+    + '<circle cx="70" cy="70" r="'+r+'" fill="none" stroke="#e9efe9" stroke-width="12"/>'
+    + '<circle class="fg" cx="70" cy="70" r="'+r+'" fill="none" stroke="var(--brand)" stroke-width="12" stroke-linecap="round" transform="rotate(-90 70 70)" stroke-dasharray="'+d.toFixed(2)+' '+g.toFixed(2)+'" stroke-dashoffset="0"/>'
+    + '<text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-size="18" font-weight="800">'+Math.round(p)+'%</text>'
+    + '</svg>'; }
+
+function buildResumoCard(stage,proc,total,isQ,base){
+  let pct;
+  if(isQ){
+    pct = base>0 ? (proc/base*100) : 0;
+    const desc = base>0 ? (fmtInt(proc)+' / '+fmtInt(base)+' análises') : (fmtInt(proc)+' análises');
+    const rest = base>0 ? Math.max(0, base - Math.min(proc, base)) : null;
+    return '<div class="card card-resumo"><div class="ring">'+donut(pct)+'</div>'
+      + '<div><div class="title">'+stage+'</div><div class="desc">'+desc+'</div>'
+      + '<div class="rest">'+(base>0? ('Restante: '+fmtInt(rest)+' — <b>'+Math.round(pct)+'%</b>') : 'Defina a base no Excel')+'</div></div></div>';
+  } else {
+    const procCap = Math.min(proc, total), rest=Math.max(0,total-proc);
+    pct = total>0 ? (procCap/total*100) : 0;
+    return '<div class="card card-resumo"><div class="ring">'+donut(pct)+'</div>'
+      + '<div><div class="title">'+stage+'</div><div class="desc">'+fmtInt(procCap)+' / '+fmtInt(total)+' amostras</div>'
+      + '<div class="rest">Restante: '+fmtInt(rest)+' — <b>'+Math.round(pct)+'%</b></div></div></div>';
+  }
+}
+
+function renderResumo(){
+  const grid=document.getElementById('grid-resumo'); grid.innerHTML='';
+  CUR.stages.forEach(st=>{
+    const arr=CUR.series[st]||[]; const proc=arr.reduce((a,b)=>a+(+b||0),0);
+    const isQ = st.toLowerCase()===QUIMICO_NAME.toLowerCase();
+    const html = buildResumoCard(st,proc,(CUR.total||0),isQ,FULL.base_quimico||0);
+    const wrap=document.createElement('div'); wrap.innerHTML=html.trim();
+    grid.appendChild(wrap.firstChild);
+  });
+}
+
+function recompute(stage){
+  const total=CUR.total||0; const arr=CUR.series[stage]?CUR.series[stage].slice():[];
+  const proc=arr.reduce((a,b)=>a+(+b||0),0);
+  const isQ = stage.toLowerCase()===QUIMICO_NAME.toLowerCase();
+
+  document.getElementById('label-pt').textContent = isQ ? "Análises / Base (análises)" : "Processadas / Total";
+  document.getElementById('label-pct').textContent = isQ ? "% (análises ÷ base)" : "% concluído";
+
+  let pct, displayPT, restDisplay;
+  if(isQ){
+    const base = FULL.base_quimico || 0;
+    pct = base>0 ? (proc/base*100) : 0;
+    displayPT = base>0 ? (fmtInt(proc)+" / "+fmtInt(base)) : (fmtInt(proc)+" análises");
+    restDisplay = base>0 ? fmtInt(Math.max(0, base - Math.min(proc, base))) : "—";
+  } else {
+    const procCap=Math.min(proc,total);
+    pct= total>0 ? (procCap/total*100) : 0;
+    displayPT = fmtInt(procCap)+" / "+fmtInt(total);
+    restDisplay = fmtInt(Math.max(0,total - proc));
+  }
+
+  const fg=document.getElementById('kpi-fg');
+  if(fg){ const r=parseFloat(fg.getAttribute('r')); const C=2*Math.PI*r; const ringPct=Math.max(0,Math.min(100,pct)); const dash=C*ringPct/100; const gap=C-dash;
+    fg.setAttribute('stroke-dasharray', dash.toFixed(2)+' '+gap.toFixed(2)); fg.setAttribute('stroke-dashoffset','0'); }
+  const t=document.getElementById('kpi-pct-txt'); if(t) t.textContent=Math.round(pct)+'%';
+  document.getElementById('title-atividade').textContent='KPIs — '+stage;
+  document.getElementById('kpi-pct').textContent=Math.round(pct)+'%';
+  document.getElementById('kpi-pt').textContent=displayPT;
+  document.getElementById('kpi-rest').textContent=restDisplay;
+
+  const l7=last(arr,7); const l7f = filledVals(l7);
+  const avg7 = l7f.length ? l7f.reduce((a,b)=>a+(+b||0),0)/l7f.length : 0;
+  const p7=last(arr.slice(0,Math.max(0,arr.length-7)),7); const p7f = filledVals(p7);
+  const avgp = p7f.length ? p7f.reduce((a,b)=>a+(+b||0),0)/p7f.length : 0;
+  const varSem=avgp>0?((avg7-avgp)/avgp*100):0; const eta=avg7>0?Math.ceil((isQ?(FULL.base_quimico?Math.max(0,FULL.base_quimico-Math.min(proc,FULL.base_quimico)):0):Math.max(0,total-Math.min(proc,total)))/avg7):null;
+  document.getElementById('kpi-media7').textContent=avg7>0?fmtInt(avg7):'—';
+  document.getElementById('kpi-var').textContent=avgp>0?(varSem.toFixed(1)+'%'):'—';
+  document.getElementById('kpi-eta').textContent=(eta!=null?eta+' d':'—');
+}
+
+function applyFilterRange(s,e){
+  const min=new Date(FULL.dates[0]), max=new Date(FULL.dates[FULL.dates.length-1]);
+  let S=s?new Date(s):min, E=e?new Date(e):max; if(S&&E&&E<S){const t=S;S=E;E=t}
+  const keep=[]; for(let i=0;i<FULL.dates.length;i++){const d=new Date(FULL.dates[i]); if((!S||d>=S)&&(!E||d<=E)) keep.push(i) }
+  const fDates=keep.map(i=>FULL.dates[i]); const fSeries={}; FULL.stages.forEach(st=>{fSeries[st]=keep.map(i=>FULL.series[st][i])});
+  CUR={total:FULL.total,dates:fDates,stages:FULL.stages.slice(),series:fSeries,period_ini:(fDates[0]||null),period_fim:(fDates.length?fDates[fDates.length-1]:null)};
+}
+
+function tryParseDate(v){
+  if(typeof v==="number"){
+    const serial=v; const utc_days = Math.floor(serial - 25569); const utc_value = utc_days * 86400; const date_info = new Date(utc_value * 1000);
+    return new Date(date_info.getUTCFullYear(), date_info.getUTCMonth(), date_info.getUTCDate());
+  }
+  const s=String(v||"").trim();
+  const m = s.match(/^(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})$/);
+  if(m){ const dd=+m[1], mm=+m[2], yyyy=(m[3].length===2 ? (2000+ +m[3]) : +m[3]); return new Date(yyyy,mm-1,dd); }
+  const d=new Date(s); if(!isNaN(d)) return d;
+  return null;
+}
+
+function parseUpload(wb){
+  // escolher sheet
+  let sh = wb.SheetNames.find(n=>n.toLowerCase()==="dados") || wb.SheetNames[0];
+  const ws = wb.Sheets[sh];
+  const A = XLSX.utils.sheet_to_json(ws, {header:1, defval:""});
+  if(A.length===0) throw new Error("Planilha vazia");
+
+  // header row
+  let headerRow = 0;
+  while(headerRow < A.length && A[headerRow].filter(x=>String(x).trim()!=="").length==0) headerRow++;
+  const headers = (A[headerRow]||[]).map(x=>String(x).trim());
+  const headersNorm = headers.map(h=>norm(h));
+
+  // achar Data
+  let idxData = headersNorm.findIndex(h=> h.startsWith('data') || ['dia','date','dt'].includes(h));
+  if(idxData<0) throw new Error("Coluna 'Data' não encontrada. Renomeie a coluna de datas para 'Data'.");
+
+  // mapeia colunas de estágio e nomes especiais
+  const stagesIdx = [];
+  let idxAbertura = -1, idxQuimico = -1;
+  headers.forEach((h,i)=>{
+    if(i===idxData) return;
+    const k = norm(h);
+    if(k==='abertura') idxAbertura = i;
+    if(k==='quimico') idxQuimico = i;
+    if(k) stagesIdx.push(i);
+  });
+
+  const rows = A.slice(headerRow+1);
+  const dataRows = [];
+  let dropped=0, total_amostras=0, base_quimico=0;
+
+  for(const r of rows){
+    const raw = r[idxData];
+    const key = norm(String(raw||"").trim());
+    // linhas de controle
+    if(key.startsWith('base')){
+      if(idxQuimico>=0){ base_quimico = Number(r[idxQuimico])||0; }
+      continue;
+    }
+    if(key==='total' || key==='totais'){
+      if(idxAbertura>=0){ total_amostras = Number(r[idxAbertura])||0; }
+      continue;
+    }
+    if(key==='percentual' || key==='percentuais' || key==='porcentagem'){ continue; }
+
+    // linhas de dados
+    const dt = tryParseDate(raw);
+    if(!dt){ dropped++; continue; }
+    const obj = {"Data": dt};
+    stagesIdx.forEach(i=>{
+      const cell = r[i];
+      const isBlank = (cell === "" || cell === null || typeof cell === "undefined");
+      obj[headers[i]] = isBlank ? null : (Number(cell) || 0);
+    });
+    dataRows.push(obj);
+  }
+
+  if(dataRows.length===0) throw new Error("Nenhuma linha de dados válida após o cabeçalho.");
+
+  dataRows.sort((a,b)=> a.Data - b.Data);
+  const dates = dataRows.map(o=> o.Data.toISOString().slice(0,10));
+  const stages = stagesIdx.map(i=> headers[i]);
+  const series = {}; stages.forEach(s=> {
+      series[s] = dataRows.map(o=> (o[s]===null || typeof o[s]==="undefined") ? null : (Number(o[s])||0));
+    });
+    if(total_amostras<=0){
+      if(idxAbertura>=0) total_amostras = series[headers[idxAbertura]].reduce((a,b)=>a+(+b||0),0);
+      else total_amostras = series[stages[0]].reduce((a,b)=>a+(+b||0),0);
+    }
+
+  return { total: total_amostras||0, dates, stages, series,
+           period_ini: dates[0]||null, period_fim: dates[dates.length-1]||null,
+           base_quimico: base_quimico||0 };
+}
+
+function hydrate(parsed){
+  FULL = parsed; CUR = JSON.parse(JSON.stringify(parsed));
+  const dS=document.getElementById('dateStart'), dE=document.getElementById('dateEnd');
+  dS.min=FULL.period_ini||''; dS.max=FULL.period_fim||''; dE.min=FULL.period_ini||''; dE.max=FULL.period_fim||'';
+  dS.value=FULL.period_ini||''; dE.value=FULL.period_fim||'';
+  const sel=document.getElementById('sel'); sel.innerHTML=''; FULL.stages.forEach(s=>{const o=document.createElement('option'); o.value=s; o.textContent=s; sel.appendChild(o)});
+  sel.value = FULL.stages.includes('Abertura') ? 'Abertura' : FULL.stages[0];
+  sel.onchange = (e)=> recompute(e.target.value);
+  document.getElementById('apply').onclick = ()=>{ applyFilterRange(dS.value,dE.value); renderResumo(); recompute(sel.value); };
+  document.getElementById('clear').onclick = ()=>{ dS.value=FULL.period_ini||''; dE.value=FULL.period_fim||''; applyFilterRange(dS.value,dE.value); renderResumo(); recompute(sel.value); };
+  clearErr(); applyFilterRange(dS.value,dE.value); renderResumo(); recompute(sel.value);
+}
+
+document.getElementById('fileInput').addEventListener('change', async (e)=>{
+  const f=e.target.files[0]; if(!f) return;
+  try{
+    const buf = await f.arrayBuffer();
+    const wb = XLSX.read(buf, {type:"array"});
+    const parsed = parseUpload(wb);
+    hydrate(parsed);
+  }catch(err){
+    showErr("Erro ao processar o arquivo: "+(err.message||err));
+  }
+});
+</script>
+
+<script>
+// === Auto-carregamento do Google Sheets (GViz JSONP, sem CORS) ===
+(function() {
+  const GVIZ_URL = 'https://docs.google.com/spreadsheets/d/1kX4mCRQtNgX5-TaWBkzUvkI7i2-IgnRG/gviz/tq?tqx=out:json&headers=1&gid=1952786623';   // Aba: Dados
+  const REFRESH_MS = 5000;         // 5s
+
+  function has(fn) { return typeof window[fn] === 'function'; }
+  function log(...a) { console.log('[Sheets]', ...a); }
+  function showError(e) { const msg = 'Erro ao carregar do Google Sheets: ' + (e && (e.message || e)); if (has('showErr')) showErr(msg); else alert(msg); }
+  function clearError() { if (has('clearErr')) clearErr(); }
+
+  function gvizToAOA(gviz) {
+    const t = gviz.table;
+    const headers = t.cols.map(c => c.label || c.id || '');
+    function fmt(cell) {
+      if (!cell) return null;
+      if (cell.v instanceof Date) {
+        const d = cell.v; const dd=String(d.getDate()).padStart(2,'0'); const mm=String(d.getMonth()+1).padStart(2,'0'); const yy=d.getFullYear();
+        return `${dd}/${mm}/${yy}`;
+      }
+      if (cell.f != null && cell.f !== '') return cell.f;
+      return cell.v;
+    }
+    const rows = t.rows.map(r => (r.c || []).map(fmt));
+    const rowsClean = rows.filter(r => r.some(x => x !== null && x !== ''));
+    return [headers, ...rowsClean];
+  }
+
+  function loadGViz() {
+    return new Promise((resolve, reject) => {
+      try {
+        window.google = window.google || {};
+        window.google.visualization = window.google.visualization || {};
+        window.google.visualization.Query = window.google.visualization.Query || {};
+        window.google.visualization.Query.setResponse = function(payload) {
+          try {
+            if (!payload || payload.status !== 'ok') throw new Error('Resposta inválida do GViz');
+            resolve(payload);
+          } catch (e) { reject(e); }
+          finally {
+            if (scriptEl && scriptEl.parentNode) scriptEl.parentNode.removeChild(scriptEl);
+            delete window.google.visualization.Query.setResponse;
+          }
+        };
+        const scriptEl = document.createElement('script');
+        scriptEl.src = GVIZ_URL;
+        scriptEl.onerror = () => reject(new Error('Falha de rede ao baixar GViz'));
+        document.head.appendChild(scriptEl);
+      } catch (e) { reject(e); }
+    });
+  }
+
+  async function carregar() {
+    try {
+      clearError();
+      const payload = await loadGViz();
+      const aoa = gvizToAOA(payload);
+      // Cria workbook e passa para o pipeline existente
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Dados');
+
+      if (has('parseUpload') && has('hydrate')) {
+        const parsed = window.parseUpload(wb);
+        window.hydrate(parsed);
+        const sel = document.getElementById('sel');
+        if (sel && has('recompute')) window.recompute(sel.value);
+      } else {
+        showError('Funções parseUpload/hydrate não disponíveis.');
+      }
+    } catch (e) {
+      showError(e);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    // esconder uploader
+    const up = document.querySelector('.uploader'); if (up) up.style.display = 'none';
+    carregar();
+    setInterval(carregar, REFRESH_MS);
+  });
+})();
+</script>
+
+</body></html>
